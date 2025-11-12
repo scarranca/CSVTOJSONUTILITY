@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV to JSON Converter</title>
+    <style>
+        /* --- General Styling --- */
+        :root {
+            --primary-color: #007bff;
+            --primary-hover-color: #0056b3;
+            --secondary-color: #6c757d;
+            --secondary-hover-color: #5a6268;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --border-color: #dee2e6;
+            --text-color: #343a40;
+            --code-bg: #2d2d2d;
+            --code-text: #f8f8f2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--light-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background-color: #ffffff;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            box-sizing: border-box;
+        }
+
+        h1 {
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 2rem;
+            color: var(--text-color);
+        }
+
+        /* --- Upload Area --- */
+        .upload-area {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.3s, border-color 0.3s;
+            margin-bottom: 1.5rem;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            background-color: #f0f8ff;
+            border-color: var(--primary-color);
+        }
+
+        .upload-area .icon {
+            font-size: 3rem;
+            color: var(--secondary-color);
+            margin-bottom: 1rem;
+        }
+
+        .upload-area p {
+            margin: 0.5rem 0;
+            color: var(--secondary-color);
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* --- Output Section --- */
+        .output-section {
+            display: none; /* Hidden by default */
+        }
+
+        .output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .output-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        button {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover-color);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--secondary-hover-color);
+        }
+
+        .json-output {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 1.5rem;
+            border-radius: 5px;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 400px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        /* --- Status Message --- */
+        .status-message {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+            display: none; /* Hidden by default */
+        }
+
+        .status-message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <h1>CSV to JSON Converter</h1>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="icon">📁</div>
+            <p><strong>Drag and drop your CSV file here</strong></p>
+            <p>or</p>
+            <button class="btn-primary" type="button">Browse Files</button>
+            <input type="file" id="fileInput" accept=".csv">
+        </div>
+
+        <section class="output-section" id="outputSection">
+            <div class="output-header">
+                <h2>JSON Output</h2>
+                <div class="buttons">
+                    <button class="btn-secondary" id="copyBtn">
+                        <span>📋</span> Copy
+                    </button>
+                    <button class="btn-primary" id="downloadBtn">
+                        <span>💾</span> Download
+                    </button>
+                </div>
+            </div>
+            <pre class="json-output" id="jsonOutput"></pre>
+        </section>
+
+        <div class="status-message" id="statusMessage"></div>
+    </main>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const outputSection = document.getElementById('outputSection');
+        const jsonOutput = document.getElementById('jsonOutput');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const statusMessage = document.getElementById('statusMessage');
+
+        let jsonData = [];
+
+        // --- Event Listeners for Upload ---
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', handleFileSelect);
+
+        // Drag and Drop Events
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+            document.body.addEventListener(eventName, preventDefaults, false); // Prevent default on body too
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, () => uploadArea.classList.remove('dragover'), false);
+        });
+
+        uploadArea.addEventListener('drop', handleDrop, false);
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        // --- File Processing ---
+        function processFile(file) {
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showStatus('Please upload a valid CSV file.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const csvText = e.target.result;
+                try {
+                    jsonData = csvToJson(csvText);
+                    displayJson(jsonData);
+                    showStatus('File successfully converted!', 'success');
+                } catch (error) {
+                    showStatus('Error parsing CSV: ' + error.message, 'error');
+                    console.error(error);
+                }
+            };
+            reader.onerror = function() {
+                showStatus('Error reading file.', 'error');
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Core CSV to JSON Logic ---
+        function csvToJson(csvText) {
+            // Split by lines and filter out empty ones
+            const lines = csvText.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length < 2) {
+                throw new Error("CSV must contain at least a header and one data row.");
+            }
+
+            // Extract headers
+            const headers = lines[0].split(',').map(header => header.trim().replace(/^"|"$/g, ''));
+
+            const result = [];
+
+            // Regex to split a line by commas not inside quotes
+            const regex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(regex);
+                if (values.length === headers.length) {
+                    const obj = headers.reduce((object, header, index) => {
+                        // Clean up quotes and whitespace from values
+                        const value = values[index] ? values[index].trim().replace(/^"|"$/g, '') : '';
+                        object[header] = value;
+                        return object;
+                    }, {});
+                    result.push(obj);
+                }
+            }
+
+            return result;
+        }
+
+        // --- Display and UI Functions ---
+        function displayJson(data) {
+            jsonOutput.textContent = JSON.stringify(data, null, 2);
+            outputSection.style.display = 'block';
+        }
+
+        function showStatus(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
+            statusMessage.style.display = 'block';
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
+        }
+
+        // --- Download and Copy Functionality ---
+        downloadBtn.addEventListener('click', () => {
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'converted-data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        copyBtn.addEventListener('click', async () => {
+            const jsonString = JSON.stringify(jsonData, null, 2);
+            if (!navigator.clipboard) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = jsonString;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showStatus('JSON copied to clipboard!', 'success');
+                } catch (err) {
+                    showStatus('Failed to copy JSON.', 'error');
+                }
+                document.body.removeChild(textArea);
+                return;
+            }
+
+            try {
+                await navigator.clipboard.writeText(jsonString);
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = '<span>✅</span> Copied!';
+                copyBtn.disabled = true;
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    copyBtn.disabled = false;
+                }, 2000);
+            } catch (err) {
+                showStatus('Failed to copy JSON.', 'error');
+                console.error('Failed to copy: ', err);
+            }
+        });
+    </script>
+
+</body>
+</html>
